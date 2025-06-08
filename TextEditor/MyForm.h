@@ -17,11 +17,9 @@ namespace TextEditor {
 	{
 	public:
 		MyForm(void)
+			:currentFileName(""), currentFilePath(""), isFileChanged(false)
 		{
 			InitializeComponent();
-			//
-			//TODO: Add the constructor code here
-			//
 		}
 
 	protected:
@@ -45,10 +43,9 @@ namespace TextEditor {
 	private: System::Windows::Forms::SaveFileDialog^ saveFileDialog1;
 	private: System::Windows::Forms::OpenFileDialog^ openFileDialog1;
 	private: System::Windows::Forms::ToolStripMenuItem^ exitToolStripMenuItem;
-
-
-
-
+	private: String^ currentFileName;
+	private: String^ currentFilePath;
+	private: bool isFileChanged;
 
 	private:
 		/// <summary>
@@ -69,10 +66,10 @@ namespace TextEditor {
 			this->newToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->saveToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->openToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
+			this->exitToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->textBox1 = (gcnew System::Windows::Forms::TextBox());
 			this->saveFileDialog1 = (gcnew System::Windows::Forms::SaveFileDialog());
 			this->openFileDialog1 = (gcnew System::Windows::Forms::OpenFileDialog());
-			this->exitToolStripMenuItem = (gcnew System::Windows::Forms::ToolStripMenuItem());
 			this->menuStrip1->SuspendLayout();
 			this->SuspendLayout();
 			// 
@@ -99,43 +96,46 @@ namespace TextEditor {
 			// newToolStripMenuItem
 			// 
 			this->newToolStripMenuItem->Name = L"newToolStripMenuItem";
-			this->newToolStripMenuItem->Size = System::Drawing::Size(224, 26);
+			this->newToolStripMenuItem->Size = System::Drawing::Size(128, 26);
 			this->newToolStripMenuItem->Text = L"New";
 			this->newToolStripMenuItem->Click += gcnew System::EventHandler(this, &MyForm::newToolStripMenuItem_Click);
 			// 
 			// saveToolStripMenuItem
 			// 
 			this->saveToolStripMenuItem->Name = L"saveToolStripMenuItem";
-			this->saveToolStripMenuItem->Size = System::Drawing::Size(224, 26);
+			this->saveToolStripMenuItem->Size = System::Drawing::Size(128, 26);
 			this->saveToolStripMenuItem->Text = L"Save";
 			this->saveToolStripMenuItem->Click += gcnew System::EventHandler(this, &MyForm::saveToolStripMenuItem_Click);
 			// 
 			// openToolStripMenuItem
 			// 
 			this->openToolStripMenuItem->Name = L"openToolStripMenuItem";
-			this->openToolStripMenuItem->Size = System::Drawing::Size(224, 26);
+			this->openToolStripMenuItem->Size = System::Drawing::Size(128, 26);
 			this->openToolStripMenuItem->Text = L"Open";
 			this->openToolStripMenuItem->Click += gcnew System::EventHandler(this, &MyForm::openToolStripMenuItem_Click);
+			// 
+			// exitToolStripMenuItem
+			// 
+			this->exitToolStripMenuItem->Name = L"exitToolStripMenuItem";
+			this->exitToolStripMenuItem->Size = System::Drawing::Size(128, 26);
+			this->exitToolStripMenuItem->Text = L"Exit";
+			this->exitToolStripMenuItem->Click += gcnew System::EventHandler(this, &MyForm::exitToolStripMenuItem_Click);
 			// 
 			// textBox1
 			// 
 			this->textBox1->Dock = System::Windows::Forms::DockStyle::Fill;
+			this->textBox1->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10.8F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
 			this->textBox1->Location = System::Drawing::Point(0, 28);
 			this->textBox1->Multiline = true;
 			this->textBox1->Name = L"textBox1";
 			this->textBox1->Size = System::Drawing::Size(925, 434);
 			this->textBox1->TabIndex = 1;
+			this->textBox1->TextChanged += gcnew System::EventHandler(this, &MyForm::textBox1_TextChanged);
 			// 
 			// openFileDialog1
 			// 
 			this->openFileDialog1->FileName = L"openFileDialog1";
-			// 
-			// exitToolStripMenuItem
-			// 
-			this->exitToolStripMenuItem->Name = L"exitToolStripMenuItem";
-			this->exitToolStripMenuItem->Size = System::Drawing::Size(224, 26);
-			this->exitToolStripMenuItem->Text = L"Exit";
-			this->exitToolStripMenuItem->Click += gcnew System::EventHandler(this, &MyForm::exitToolStripMenuItem_Click);
 			// 
 			// MyForm
 			// 
@@ -149,11 +149,12 @@ namespace TextEditor {
 			this->MainMenuStrip = this->menuStrip1;
 			this->Name = L"MyForm";
 			this->Text = L"Text Editor";
+			this->Load += gcnew System::EventHandler(this, &MyForm::MyForm_Load);
+			this->FormClosing += gcnew System::Windows::Forms::FormClosingEventHandler(this, &MyForm::MyForm_Closing);
 			this->menuStrip1->ResumeLayout(false);
 			this->menuStrip1->PerformLayout();
 			this->ResumeLayout(false);
 			this->PerformLayout();
-
 		}
 #pragma endregion
 	private: System::Void newToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
@@ -170,6 +171,13 @@ namespace TextEditor {
 		}
 	}
 	private: System::Void saveToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
+		if (currentFilePath) {
+			StreamWriter^ sw = gcnew StreamWriter(currentFilePath);
+			sw->Write(textBox1->Text);
+			sw->Close();
+			return;
+		}
+
 		saveFileDialog1->InitialDirectory = "C:";
 		saveFileDialog1->Title = "Save File";
 		saveFileDialog1->FileName = "";
@@ -189,9 +197,38 @@ namespace TextEditor {
 			textBox1->Text = sr->ReadToEnd();
 			sr->Close();
 		}
+		currentFileName = openFileDialog1->SafeFileName;
+		currentFilePath = openFileDialog1->FileName;
+		isFileChanged = false;
 	}
 	private: System::Void exitToolStripMenuItem_Click(System::Object^ sender, System::EventArgs^ e) {
-		
+		if (isFileChanged) {
+			saveFileDialog1->CreatePrompt = true;
+			saveFileDialog1->InitialDirectory = "C:";
+			saveFileDialog1->Title = "Save File";
+			saveFileDialog1->FileName = "";
+			saveFileDialog1->Filter = "Text Files|*.txt";
+			if (saveFileDialog1->ShowDialog() != System::Windows::Forms::DialogResult::Cancel) {
+				StreamWriter^ sw = gcnew StreamWriter(saveFileDialog1->FileName);
+				sw->Write(textBox1->Text);
+				sw->Close();
+				this->Close();
+			}
+		}
+		else {
+			this->Close();
+		}
+	}
+	private: System::Void textBox1_TextChanged(System::Object^ sender, System::EventArgs^ e) {
+		if (!isFileChanged) {
+			isFileChanged = true;
+		}
+	}
+	private: System::Void MyForm_Load(System::Object^ sender, System::EventArgs^ e) {
+
+	}
+	private: System::Void MyForm_Closing(System::Object^ sender, System::Windows::Forms::FormClosingEventArgs^ e) {
+
 	}
 };
 }
